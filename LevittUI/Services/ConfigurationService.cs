@@ -2,9 +2,10 @@ namespace LevittUI.Services
 {
     public class ConfigurationService : IConfigurationService
     {
-        public string ServerAddress { get; private set; }
-        public string DefaultUsername { get; private set; }
-        public string DefaultPassword { get; private set; }
+        public string ServerAddress { get; private set; } = string.Empty;
+        public string DefaultUsername { get; private set; } = string.Empty;
+        public string DefaultPassword { get; private set; } = string.Empty;
+        public bool IsAutoLoginEnabled { get; private set; } = true;
 
         public ConfigurationService()
         {
@@ -50,6 +51,13 @@ namespace LevittUI.Services
                             DefaultUsername = line.Substring("Username=".Length);
                         else if (line.StartsWith("Password="))
                             DefaultPassword = line.Substring("Password=".Length);
+                        else if (line.StartsWith("AutoLogin="))
+                        {
+                            if (bool.TryParse(line.Substring("AutoLogin=".Length), out var autoLoginValue))
+                            {
+                                IsAutoLoginEnabled = autoLoginValue;
+                            }
+                        }
                     }
                 }
             }
@@ -93,7 +101,8 @@ namespace LevittUI.Services
                 {
                     $"ServerAddress={serverAddress}",
                     $"Username={username}",
-                    $"Password={password}"
+                    $"Password={password}",
+                    $"AutoLogin={IsAutoLoginEnabled}"
                 };
                 
                 File.WriteAllLines(configPath, lines);
@@ -102,6 +111,30 @@ namespace LevittUI.Services
                 ServerAddress = serverAddress;
                 DefaultUsername = username;
                 DefaultPassword = password;
+            }
+            catch (Exception)
+            {
+                // Silently fail to avoid exposing file system issues
+            }
+        }
+
+        public void SetAutoLoginEnabled(bool enabled)
+        {
+            IsAutoLoginEnabled = enabled;
+            
+            // Save the preference immediately
+            try
+            {
+                var configPath = GetConfigFilePath();
+                var lines = new[]
+                {
+                    $"ServerAddress={ServerAddress}",
+                    $"Username={DefaultUsername}",
+                    $"Password={DefaultPassword}",
+                    $"AutoLogin={enabled}"
+                };
+                
+                File.WriteAllLines(configPath, lines);
             }
             catch (Exception)
             {

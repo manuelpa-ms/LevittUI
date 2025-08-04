@@ -58,6 +58,17 @@
                        Margin="10,5" />
             </Border>
 
+            <!-- Auto-login Checkbox -->
+            <StackLayout Orientation="Horizontal" 
+                         HorizontalOptions="Center"
+                         Margin="0,10,0,0">
+                <CheckBox IsChecked="{Binding IsAutoLoginEnabled}"
+                          Color="{StaticResource Primary}" />
+                <Label Text="Auto-login with available credentials"
+                       VerticalOptions="Center"
+                       TextColor="{AppThemeBinding Light={StaticResource Gray600}, Dark={StaticResource Gray300}}" />
+            </StackLayout>
+
             <!-- Login Button -->
             <Button x:Name="LoginBtn"
                     Text="Connect"

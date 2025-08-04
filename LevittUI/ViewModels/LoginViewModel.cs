@@ -11,6 +11,7 @@ namespace LevittUI.ViewModels
         private string _password = string.Empty;
         private string _serverAddress = string.Empty;
         private string _statusMessage = string.Empty;
+        private bool _hasAttemptedAutoLogin = false;
 
         public LoginViewModel(IHomeAutomationService homeAutomationService, IConfigurationService configurationService)
         {
@@ -21,6 +22,9 @@ namespace LevittUI.ViewModels
             
             // Load default values from configuration (if any)
             LoadDefaults();
+            
+            // Attempt auto-login if credentials are available and enabled
+            _ = Task.Run(async () => await TryAutoLoginAsync());
         }
 
         private void LoadDefaults()
@@ -63,7 +67,67 @@ namespace LevittUI.ViewModels
             set => SetProperty(ref _statusMessage, value);
         }
 
+        public bool IsAutoLoginEnabled
+        {
+            get => _configurationService.IsAutoLoginEnabled;
+            set 
+            { 
+                if (_configurationService.IsAutoLoginEnabled != value)
+                {
+                    _configurationService.SetAutoLoginEnabled(value);
+                    OnPropertyChanged();
+                }
+            }
+        }
+
         public ICommand LoginCommand { get; }
+
+        /// <summary>
+        /// Allows manual triggering of auto-login functionality
+        /// </summary>
+        public async Task RetryAutoLoginAsync()
+        {
+            _hasAttemptedAutoLogin = false;
+            await TryAutoLoginAsync();
+        }
+
+        public async Task TryAutoLoginAsync()
+        {
+            // Prevent multiple auto-login attempts
+            if (_hasAttemptedAutoLogin || !_configurationService.IsAutoLoginEnabled)
+                return;
+
+            _hasAttemptedAutoLogin = true;
+
+            // Wait a moment to let the UI initialize
+            await Task.Delay(500);
+
+            // Check if we have any credentials available (factory defaults or saved)
+            if (!string.IsNullOrWhiteSpace(Username) && 
+                !string.IsNullOrWhiteSpace(Password) && 
+                !string.IsNullOrWhiteSpace(ServerAddress))
+            {
+                if (Application.Current?.Dispatcher != null)
+                {
+                    await Application.Current.Dispatcher.DispatchAsync(async () =>
+                    {
+                        StatusMessage = "Auto-connecting with available credentials...";
+                        await Task.Delay(100); // Small delay to show the message
+                        await LoginAsync();
+                    });
+                }
+            }
+            else
+            {
+                if (Application.Current?.Dispatcher != null)
+                {
+                    await Application.Current.Dispatcher.DispatchAsync(() =>
+                    {
+                        StatusMessage = "Please enter your credentials to connect.";
+                    });
+                }
+            }
+        }
 
         private async Task LoginAsync()
         {

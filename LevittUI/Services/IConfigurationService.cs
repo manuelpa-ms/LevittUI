@@ -5,5 +5,7 @@ namespace LevittUI.Services
         string ServerAddress { get; }
         string DefaultUsername { get; }
         string DefaultPassword { get; }
+        bool IsAutoLoginEnabled { get; }
+        void SetAutoLoginEnabled(bool enabled);
     }
 }

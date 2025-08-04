@@ -27,7 +27,7 @@
                     <Grid ColumnDefinitions="*,*" ColumnSpacing="20">
                         <!-- A/C Control -->
                         <StackLayout Grid.Column="0" Spacing="10">
-                            <Label Text="❄️ Air Conditioning"
+                            <Label Text="❄️ A/C"
                                    FontSize="16"
                                    FontAttributes="Bold"
                                    HorizontalOptions="Center" />
