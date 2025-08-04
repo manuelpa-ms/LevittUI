@@ -1,0 +1,19 @@
+# LevittUI Configuration Example
+# Copy this file to your platform-specific app data folder
+
+# Server configuration (required)
+ServerAddress=http://192.168.1.100
+
+# Default login credentials (optional)
+Username=admin
+Password=password
+
+# Platform-specific locations:
+# Windows: %LOCALAPPDATA%\LevittUI\config.txt
+# Android: App's internal storage (/data/data/[package]/files/config.txt)
+# iOS: App's Documents directory
+
+# Or set environment variables:
+# LEVITT_SERVER_ADDRESS=http://192.168.1.100
+# LEVITT_USERNAME=admin
+# LEVITT_PASSWORD=password

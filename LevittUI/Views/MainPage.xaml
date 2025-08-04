@@ -1,0 +1,191 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:models="clr-namespace:LevittUI.Models"
+             xmlns:viewmodels="clr-namespace:LevittUI.ViewModels"
+             x:Class="LevittUI.Views.MainPage"
+             Title="Home Automation"
+             x:DataType="viewmodels:MainViewModel">
+
+    <ScrollView>
+        <StackLayout Spacing="20" Padding="20">
+            
+            <!-- Header -->
+            <Label Text="🏠 Home Control"
+                   FontSize="28"
+                   FontAttributes="Bold"
+                   HorizontalOptions="Center"
+                   Margin="0,10,0,20" />
+
+            <!-- House-wide Controls -->
+            <Border StrokeThickness="2"
+                    Stroke="{StaticResource Primary}"
+                    StrokeShape="RoundRectangle 15"
+                    BackgroundColor="{AppThemeBinding Light={StaticResource Gray50}, Dark={StaticResource Gray800}}">
+                
+                <StackLayout Padding="20" Spacing="15">
+                    
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="20">
+                        <!-- A/C Control -->
+                        <StackLayout Grid.Column="0" Spacing="10">
+                            <Label Text="❄️ Air Conditioning"
+                                   FontSize="16"
+                                   FontAttributes="Bold"
+                                   HorizontalOptions="Center" />
+                            <Button Command="{Binding ToggleHouseAcCommand}"
+                                    BackgroundColor="{Binding IsAcOn, Converter={StaticResource BoolToAcColorConverter}}"
+                                    TextColor="White"
+                                    HeightRequest="50"
+                                    CornerRadius="25"
+                                    FontSize="16"
+                                    FontAttributes="Bold"
+                                    IsEnabled="{Binding IsAcToggling, Converter={StaticResource InvertBoolConverter}}">
+                                <Button.Triggers>
+                                    <DataTrigger TargetType="Button" Binding="{Binding IsAcToggling}" Value="True">
+                                        <Setter Property="Text" Value="⏳ Loading..." />
+                                    </DataTrigger>
+                                    <DataTrigger TargetType="Button" Binding="{Binding IsAcToggling}" Value="False">
+                                        <Setter Property="Text" Value="{Binding IsAcOn, Converter={StaticResource BoolToAcStatusConverter}}" />
+                                    </DataTrigger>
+                                </Button.Triggers>
+                            </Button>
+                        </StackLayout>
+
+                        <!-- Blinds Control -->
+                        <StackLayout Grid.Column="1" Spacing="10">
+                            <Label Text="🪟 Blinds"
+                                   FontSize="16"
+                                   FontAttributes="Bold"
+                                   HorizontalOptions="Center" />
+                            <Grid ColumnDefinitions="*,*" ColumnSpacing="0">
+                                <Border Grid.Column="0"
+                                        BackgroundColor="{StaticResource Primary}"
+                                        StrokeShape="RoundRectangle 20,0,20,0"
+                                        HeightRequest="50">
+                                    <Button Text="⬆️ UP"
+                                            Command="{Binding MoveBlindsUpCommand}"
+                                            BackgroundColor="Transparent"
+                                            TextColor="White"
+                                            FontSize="14"
+                                            FontAttributes="Bold"
+                                            BorderWidth="0"
+                                            IsEnabled="{Binding IsBlindsMoving, Converter={StaticResource InvertBoolConverter}}" />
+                                </Border>
+                                <Border Grid.Column="1"
+                                        BackgroundColor="{StaticResource Secondary}"
+                                        StrokeShape="RoundRectangle 0,20,0,20"
+                                        HeightRequest="50">
+                                    <Button Text="⬇️ DOWN"
+                                            Command="{Binding MoveBlindsDownCommand}"
+                                            BackgroundColor="Transparent"
+                                            TextColor="White"
+                                            FontSize="14"
+                                            FontAttributes="Bold"
+                                            BorderWidth="0"
+                                            IsEnabled="{Binding IsBlindsMoving, Converter={StaticResource InvertBoolConverter}}" />
+                                </Border>
+                            </Grid>
+                        </StackLayout>
+                    </Grid>
+                </StackLayout>
+            </Border>
+
+            
+
+            <!-- Loading Indicator -->
+            <StackLayout Orientation="Horizontal"
+                         HorizontalOptions="Center"
+                         Margin="0,5,0,10"
+                         IsVisible="True">
+
+                <!-- Room Temperature Monitoring -->
+                <Label Text="🌡️ Room Temperatures"
+                    FontSize="20"
+                    FontAttributes="Bold"
+                    HorizontalOptions="Center"
+                    Margin="0,10,0,0" />
+
+                <ActivityIndicator IsRunning="{Binding IsRefreshing}"
+                                   IsVisible="{Binding IsRefreshing}"
+                                   Color="{StaticResource Primary}"
+                                   Margin="10,0,0,0"
+                                   VerticalOptions="Center" />
+            </StackLayout>
+
+            <CollectionView ItemsSource="{Binding Rooms}" 
+                            SelectionMode="None">
+                
+                <CollectionView.ItemsLayout>
+                    <GridItemsLayout Orientation="Vertical" 
+                                     Span="2" 
+                                     HorizontalItemSpacing="10" 
+                                     VerticalItemSpacing="10" />
+                </CollectionView.ItemsLayout>
+                
+                <CollectionView.ItemTemplate>
+                    <DataTemplate x:DataType="models:Room">
+                        <Border StrokeThickness="1"
+                                Stroke="{AppThemeBinding Light={StaticResource Gray200}, Dark={StaticResource Gray500}}"
+                                StrokeShape="RoundRectangle 12"
+                                BackgroundColor="{AppThemeBinding Light=White, Dark={StaticResource Gray900}}"
+                                Padding="15"
+                                Margin="5">
+                            
+                            <StackLayout Spacing="8">
+                                <!-- Room Name -->
+                                <Label Text="{Binding Name}"
+                                       FontSize="16"
+                                       FontAttributes="Bold"
+                                       HorizontalOptions="Center"
+                                       TextColor="{AppThemeBinding Light={StaticResource Gray900}, Dark={StaticResource Gray100}}" />
+
+                                <!-- Current Temperature (Prominent) -->
+                                <StackLayout Orientation="Vertical" HorizontalOptions="Center" Spacing="2">
+                                    <Label Text="{Binding CurrentTemperature, Converter={StaticResource TemperatureDisplayConverter}}"
+                                           FontSize="28"
+                                           FontAttributes="Bold"
+                                           HorizontalOptions="Center"
+                                           TextColor="{StaticResource Primary}" />
+                                    <Label Text="Current"
+                                           FontSize="11"
+                                           HorizontalOptions="Center"
+                                           TextColor="{AppThemeBinding Light={StaticResource Gray600}, Dark={StaticResource Gray400}}" />
+                                </StackLayout>
+
+                                <!-- Target Temperature (Smaller) -->
+                                <StackLayout Orientation="Horizontal" HorizontalOptions="Center" Spacing="5">
+                                    <Label Text="Target:"
+                                           FontSize="12"
+                                           VerticalOptions="Center"
+                                           TextColor="{AppThemeBinding Light={StaticResource Gray600}, Dark={StaticResource Gray400}}" />
+                                    <Label Text="{Binding TargetTemperature, Converter={StaticResource TemperatureDisplayConverter}}"
+                                           FontSize="14"
+                                           VerticalOptions="Center"
+                                           TextColor="{StaticResource Secondary}" />
+                                </StackLayout>
+                            </StackLayout>
+                        </Border>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+
+            <!-- Refresh Button -->
+            <Button Text="🔄 Refresh Data"
+                    Command="{Binding RefreshCommand}"
+                    BackgroundColor="{StaticResource Primary}"
+                    TextColor="White"
+                    HeightRequest="50"
+                    CornerRadius="25"
+                    FontSize="16"
+                    Margin="0,20,0,10" />
+
+            <!-- Last Updated -->
+            <Label Text="{Binding LastUpdated, StringFormat='Last updated: {0:HH:mm:ss}'}"
+                   FontSize="12"
+                   HorizontalOptions="Center"
+                   TextColor="{AppThemeBinding Light={StaticResource Gray500}, Dark={StaticResource Gray400}}" />
+
+        </StackLayout>
+    </ScrollView>
+
+</ContentPage>

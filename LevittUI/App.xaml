@@ -1,0 +1,25 @@
+﻿<?xml version="1.0" encoding="UTF-8" ?>
+<Application xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:local="clr-namespace:LevittUI"
+             xmlns:converters="clr-namespace:LevittUI.Converters"
+             x:Class="LevittUI.App">
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="Resources/Styles/Colors.xaml" />
+                <ResourceDictionary Source="Resources/Styles/Styles.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+            
+            <!-- Value Converters -->
+            <converters:TemperatureDisplayConverter x:Key="TemperatureDisplayConverter" />
+            <converters:InvertBoolConverter x:Key="InvertBoolConverter" />
+            <converters:InvertedBoolConverter x:Key="InvertedBoolConverter" />
+            <converters:StringToBoolConverter x:Key="StringToBoolConverter" />
+            <converters:BoolToAcStatusConverter x:Key="BoolToAcStatusConverter" />
+            <converters:BoolToAcColorConverter x:Key="BoolToAcColorConverter" />
+            <converters:BlindPositionToStringConverter x:Key="BlindPositionToStringConverter" />
+            <converters:BlindPositionToColorConverter x:Key="BlindPositionToColorConverter" />
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>
