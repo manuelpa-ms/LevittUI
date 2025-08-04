@@ -384,3 +384,5 @@ appsettings.*.json
 **/LevittUI/config.txt
 README_secure.md
 LevittUI/Services/DefaultConfiguration.cs
+LevittUI/.DS_Store
+LevittUI/Resources/.DS_Store
