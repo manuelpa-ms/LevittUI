@@ -77,7 +77,7 @@
                                     <Button Text="⬇️ DOWN"
                                             Command="{Binding MoveBlindsDownCommand}"
                                             BackgroundColor="Transparent"
-                                            TextColor="White"
+                                            TextColor="Black"
                                             FontSize="14"
                                             FontAttributes="Bold"
                                             BorderWidth="0"
