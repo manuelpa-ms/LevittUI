@@ -28,6 +28,15 @@ namespace LevittUI.ViewModels
             Username = _configurationService.DefaultUsername;
             Password = _configurationService.DefaultPassword;
             ServerAddress = _configurationService.ServerAddress;
+            
+            // Show helpful message if using factory defaults
+#if ANDROID || IOS
+            if (!string.IsNullOrEmpty(DefaultConfiguration.FactoryServerAddress) && 
+                ServerAddress == DefaultConfiguration.FactoryServerAddress)
+            {
+                // Factory defaults are loaded for mobile - user can modify if needed
+            }
+#endif
         }
 
         public string Username

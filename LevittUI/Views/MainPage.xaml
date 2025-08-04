@@ -4,14 +4,13 @@
              xmlns:models="clr-namespace:LevittUI.Models"
              xmlns:viewmodels="clr-namespace:LevittUI.ViewModels"
              x:Class="LevittUI.Views.MainPage"
-             Title="Home Automation"
              x:DataType="viewmodels:MainViewModel">
 
     <ScrollView>
-        <StackLayout Spacing="20" Padding="20">
+        <StackLayout Spacing="20" Padding="20, 0, 20, 20">
             
             <!-- Header -->
-            <Label Text="🏠 Home Control"
+            <Label Text="🏠 Jardines de Valenoso"
                    FontSize="28"
                    FontAttributes="Bold"
                    HorizontalOptions="Center"
@@ -146,10 +145,6 @@
                                            FontAttributes="Bold"
                                            HorizontalOptions="Center"
                                            TextColor="{StaticResource Primary}" />
-                                    <Label Text="Current"
-                                           FontSize="11"
-                                           HorizontalOptions="Center"
-                                           TextColor="{AppThemeBinding Light={StaticResource Gray600}, Dark={StaticResource Gray400}}" />
                                 </StackLayout>
 
                                 <!-- Target Temperature (Smaller) -->
