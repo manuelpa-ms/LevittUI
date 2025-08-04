@@ -100,20 +100,53 @@ namespace LevittUI.Services
             _configurationService = configurationService;
             _baseUrl = $"http://{_configurationService.ServerAddress}";
             
-            // Configure HttpClient timeout
+            // Configure HttpClient timeout and headers
             _httpClient.Timeout = TimeSpan.FromSeconds(30);
+            
+            // Add default headers that might help with connectivity
+            _httpClient.DefaultRequestHeaders.Add("User-Agent", "LevittUI/1.0 (Android; Mobile)");
+            _httpClient.DefaultRequestHeaders.Add("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8");
+            _httpClient.DefaultRequestHeaders.Add("Accept-Language", "en-US,en;q=0.5");
+            _httpClient.DefaultRequestHeaders.Add("Connection", "keep-alive");
+            
+            _logger.LogInformation("HomeAutomationService initialized with base URL: {BaseUrl}", _baseUrl);
         }
 
         public async Task<bool> LoginAsync(string username, string password)
         {
             try
             {
+                _logger.LogInformation("Starting login process for user: {Username} to server: {BaseUrl}", username, _baseUrl);
+                
+#if ANDROID
+                LevittUI.Platforms.Android.AndroidLogger.LogInfo($"[HomeAutomationService] Starting login to {_baseUrl} for user {username}");
+#endif
+                
+                // Test basic connectivity first
+                try
+                {
+                    var testResponse = await _httpClient.GetAsync($"{_baseUrl}/", new CancellationToken());
+                    _logger.LogInformation("Basic connectivity test: {StatusCode}", testResponse.StatusCode);
+#if ANDROID
+                    LevittUI.Platforms.Android.AndroidLogger.LogInfo($"[HomeAutomationService] Connectivity test result: {testResponse.StatusCode}");
+#endif
+                }
+                catch (Exception connectEx)
+                {
+                    _logger.LogError(connectEx, "Basic connectivity test failed to {BaseUrl}", _baseUrl);
+#if ANDROID
+                    LevittUI.Platforms.Android.AndroidLogger.LogError($"[HomeAutomationService] Connectivity test failed: {connectEx.Message}");
+#endif
+                    throw new InvalidOperationException($"Cannot connect to server at {_baseUrl}. Please check server address and network connection.", connectEx);
+                }
+
                 // Based on Fiddler trace, the system uses main.app with section=auth for authentication
                 // First, get the main page to get a session
+                _logger.LogDebug("Step 1: Getting main page");
                 var mainPageResponse = await _httpClient.GetAsync($"{_baseUrl}/main.app");
                 if (!mainPageResponse.IsSuccessStatusCode)
                 {
-                    _logger.LogError("Failed to access main page");
+                    _logger.LogError("Failed to access main page: {StatusCode} - {ReasonPhrase}", mainPageResponse.StatusCode, mainPageResponse.ReasonPhrase);
                     return false;
                 }
 
@@ -123,22 +156,29 @@ namespace LevittUI.Services
                 {
                     // Generate a session ID if we can't extract one
                     sessionId = Guid.NewGuid().ToString();
+                    _logger.LogDebug("Generated new session ID: {SessionId}", sessionId);
+                }
+                else
+                {
+                    _logger.LogDebug("Extracted session ID: {SessionId}", sessionId);
                 }
 
                 // Now try to authenticate using the auth section
                 // Based on Fiddler trace: main.app?SessionId=...&section=auth
+                _logger.LogDebug("Step 2: Accessing auth section");
                 var authUrl = $"{_baseUrl}/main.app?SessionId={sessionId}&section=auth";
                 var authResponse = await _httpClient.GetAsync(authUrl);
                 
                 if (!authResponse.IsSuccessStatusCode)
                 {
-                    _logger.LogError("Failed to access auth section");
+                    _logger.LogError("Failed to access auth section: {StatusCode} - {ReasonPhrase}", authResponse.StatusCode, authResponse.ReasonPhrase);
                     return false;
                 }
 
                 // Try to POST credentials to the auth endpoint
                 // Based on the HTML form: action="/main.app?SessionId=...&section=auth" method="post"
                 // Form fields are: user (text) and pwd (password)
+                _logger.LogDebug("Step 3: Submitting credentials");
                 var loginData = new FormUrlEncodedContent(new[]
                 {
                     new KeyValuePair<string, string>("user", username),
@@ -148,6 +188,8 @@ namespace LevittUI.Services
 
                 var loginUrl = $"{_baseUrl}/main.app?SessionId={sessionId}&section=auth";
                 var loginResponse = await _httpClient.PostAsync(loginUrl, loginData);
+                
+                _logger.LogDebug("Login response: {StatusCode} - {ReasonPhrase}", loginResponse.StatusCode, loginResponse.ReasonPhrase);
                 
                 if (loginResponse.IsSuccessStatusCode)
                 {
@@ -172,14 +214,36 @@ namespace LevittUI.Services
                 }
                 else
                 {
-                    _logger.LogError("Login failed with status: {StatusCode}", loginResponse.StatusCode);
+                    var errorContent = await loginResponse.Content.ReadAsStringAsync();
+                    _logger.LogError("Login failed with status: {StatusCode} - {ReasonPhrase}. Content: {Content}", 
+                        loginResponse.StatusCode, loginResponse.ReasonPhrase, 
+                        errorContent.Length > 200 ? errorContent.Substring(0, 200) + "..." : errorContent);
                     return false;
                 }
             }
+            catch (HttpRequestException httpEx)
+            {
+                _logger.LogError(httpEx, "HTTP request failed during login");
+#if ANDROID
+                LevittUI.Platforms.Android.AndroidLogger.LogError($"[HomeAutomationService] HTTP request failed: {httpEx.Message}");
+#endif
+                throw new InvalidOperationException("Connection error: Please check server address and network connection", httpEx);
+            }
+            catch (TaskCanceledException tcEx) when (tcEx.InnerException is TimeoutException)
+            {
+                _logger.LogError(tcEx, "Login request timed out");
+#if ANDROID
+                LevittUI.Platforms.Android.AndroidLogger.LogError($"[HomeAutomationService] Request timed out: {tcEx.Message}");
+#endif
+                throw new InvalidOperationException("Connection timeout: Please check server address and network connection", tcEx);
+            }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Login failed");
-                return false;
+                _logger.LogError(ex, "Login failed with unexpected error");
+#if ANDROID
+                LevittUI.Platforms.Android.AndroidLogger.LogError($"[HomeAutomationService] Unexpected error: {ex.GetType().Name}: {ex.Message}");
+#endif
+                throw new InvalidOperationException("Login failed: " + ex.Message, ex);
             }
         }
 

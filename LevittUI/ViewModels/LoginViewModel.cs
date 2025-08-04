@@ -143,6 +143,9 @@ namespace LevittUI.ViewModels
             IsBusy = true;
             StatusMessage = "Connecting...";
 
+            // Add diagnostic logging
+            System.Diagnostics.Debug.WriteLine($"[LoginViewModel] Attempting login to server: {ServerAddress} with user: {Username}");
+
             try
             {
                 var success = await _homeAutomationService.LoginAsync(Username, Password);
@@ -150,6 +153,7 @@ namespace LevittUI.ViewModels
                 if (success)
                 {
                     StatusMessage = "Login successful!";
+                    System.Diagnostics.Debug.WriteLine("[LoginViewModel] Login successful");
                     
                     // Save configuration for next time (optional - user choice)
                     if (_configurationService is ConfigurationService configService)
@@ -163,11 +167,21 @@ namespace LevittUI.ViewModels
                 else
                 {
                     StatusMessage = "Login failed. Please check your credentials.";
+                    System.Diagnostics.Debug.WriteLine("[LoginViewModel] Login failed - authentication error");
                 }
             }
             catch (Exception ex)
             {
-                StatusMessage = $"Connection error: Please check server address and network connection.";
+                var errorMessage = $"Connection error: Please check server address and network connection";
+                StatusMessage = ex.Message;
+                
+                // Detailed logging for debugging
+                System.Diagnostics.Debug.WriteLine($"[LoginViewModel] Login exception: {ex.GetType().Name}: {ex.Message}");
+                if (ex.InnerException != null)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[LoginViewModel] Inner exception: {ex.InnerException.GetType().Name}: {ex.InnerException.Message}");
+                }
+                System.Diagnostics.Debug.WriteLine($"[LoginViewModel] Full stack trace: {ex.StackTrace}");
             }
             finally
             {
