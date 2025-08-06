@@ -100,14 +100,20 @@ namespace LevittUI.Services
             _configurationService = configurationService;
             _baseUrl = $"http://{_configurationService.ServerAddress}";
             
+            // Log HttpClient details for debugging
+            _logger.LogInformation("HomeAutomationService constructor called with HttpClient: {HttpClientType}", _httpClient.GetType().Name);
+            System.Diagnostics.Debug.WriteLine($"[HomeAutomationService] Constructor: HttpClient type = {_httpClient.GetType().Name}");
+            System.Diagnostics.Debug.WriteLine($"[HomeAutomationService] Constructor: BaseAddress = {_httpClient.BaseAddress}");
+            System.Diagnostics.Debug.WriteLine($"[HomeAutomationService] Constructor: Timeout = {_httpClient.Timeout}");
+            
             // Configure HttpClient timeout and headers
             _httpClient.Timeout = TimeSpan.FromSeconds(30);
             
-            // Add default headers that might help with connectivity
-            _httpClient.DefaultRequestHeaders.Add("User-Agent", "LevittUI/1.0 (Android; Mobile)");
-            _httpClient.DefaultRequestHeaders.Add("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8");
-            _httpClient.DefaultRequestHeaders.Add("Accept-Language", "en-US,en;q=0.5");
+            // Add default headers to match browser behavior
+            _httpClient.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36");
+            _httpClient.DefaultRequestHeaders.Add("Accept-Language", "en-US,en;q=0.9,es-ES;q=0.8,es;q=0.7");
             _httpClient.DefaultRequestHeaders.Add("Connection", "keep-alive");
+            _httpClient.DefaultRequestHeaders.Add("DNT", "1");
             
             _logger.LogInformation("HomeAutomationService initialized with base URL: {BaseUrl}", _baseUrl);
         }
@@ -125,7 +131,9 @@ namespace LevittUI.Services
                 // Test basic connectivity first
                 try
                 {
+                    System.Diagnostics.Debug.WriteLine($"[HomeAutomationService] About to make HTTP request to {_baseUrl}/");
                     var testResponse = await _httpClient.GetAsync($"{_baseUrl}/", new CancellationToken());
+                    System.Diagnostics.Debug.WriteLine($"[HomeAutomationService] HTTP request completed with status: {testResponse.StatusCode}");
                     _logger.LogInformation("Basic connectivity test: {StatusCode}", testResponse.StatusCode);
 #if ANDROID
                     LevittUI.Platforms.Android.AndroidLogger.LogInfo($"[HomeAutomationService] Connectivity test result: {testResponse.StatusCode}");
@@ -206,9 +214,9 @@ namespace LevittUI.Services
                     
                     _logger.LogInformation("Login successful with session: {SessionId}", _sessionId);
                     
-                    // Update HttpClient default headers to include the session cookie
+                    // Update HttpClient default headers to include the session cookie in simple format
                     _httpClient.DefaultRequestHeaders.Remove("Cookie");
-                    _httpClient.DefaultRequestHeaders.Add("Cookie", $"SessionId={_sessionId}; Path=/");
+                    _httpClient.DefaultRequestHeaders.Add("Cookie", $"SessionId={_sessionId}");
                     
                     return true;
                 }
@@ -352,7 +360,21 @@ namespace LevittUI.Services
                 var timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
                 var url = $"{_baseUrl}/ajax.app?SessionId={_sessionId}&service=getDp&plantItemId={plantItemId}&_={timestamp}";
                 
-                var response = await _httpClient.GetAsync(url);
+                // Create request with proper AJAX headers
+                var request = new HttpRequestMessage(HttpMethod.Get, url);
+                
+                // Add AJAX-specific headers that match browser behavior
+                request.Headers.Add("X-Requested-With", "XMLHttpRequest");
+                request.Headers.Add("Accept", "application/json, text/javascript, */*; q=0.01");
+                request.Headers.Add("Referer", $"{_baseUrl}/main.app?SessionId={_sessionId}&section=auth");
+                
+                // Set cookie in simple format (not versioned)
+                request.Headers.Add("Cookie", $"SessionId={_sessionId}");
+                
+                System.Diagnostics.Debug.WriteLine($"[HomeAutomationService] Making AJAX request to: {url}");
+                System.Diagnostics.Debug.WriteLine($"[HomeAutomationService] Headers: X-Requested-With=XMLHttpRequest, Accept=application/json, Cookie=SessionId={_sessionId}");
+                
+                var response = await _httpClient.SendAsync(request);
                 if (!response.IsSuccessStatusCode)
                 {
                     _logger.LogWarning("Failed to get data point {PlantItemId} - HTTP {StatusCode}", plantItemId, response.StatusCode);
@@ -513,28 +535,28 @@ namespace LevittUI.Services
                 var boundary = "----WebKitFormBoundary" + Guid.NewGuid().ToString("N")[..16];
                 var formDataBuilder = new StringBuilder();
                 
-                // Add form fields in the exact format the browser uses
-                formDataBuilder.AppendLine($"--{boundary}");
-                formDataBuilder.AppendLine("Content-Disposition: form-data; name=\"action\"");
-                formDataBuilder.AppendLine();
-                formDataBuilder.AppendLine("update");
+                // Add form fields in the exact format the browser uses with CRLF line endings
+                formDataBuilder.Append($"--{boundary}\r\n");
+                formDataBuilder.Append("Content-Disposition: form-data; name=\"action\"\r\n");
+                formDataBuilder.Append("\r\n");
+                formDataBuilder.Append("update\r\n");
                 
-                formDataBuilder.AppendLine($"--{boundary}");
-                formDataBuilder.AppendLine("Content-Disposition: form-data; name=\"DpDescription\"");
-                formDataBuilder.AppendLine();
-                formDataBuilder.AppendLine("COzwValME8");
+                formDataBuilder.Append($"--{boundary}\r\n");
+                formDataBuilder.Append("Content-Disposition: form-data; name=\"DpDescription\"\r\n");
+                formDataBuilder.Append("\r\n");
+                formDataBuilder.Append("COzwValME8\r\n");
                 
-                formDataBuilder.AppendLine($"--{boundary}");
-                formDataBuilder.AppendLine("Content-Disposition: form-data; name=\"id\"");
-                formDataBuilder.AppendLine();
-                formDataBuilder.AppendLine("1083");
+                formDataBuilder.Append($"--{boundary}\r\n");
+                formDataBuilder.Append("Content-Disposition: form-data; name=\"id\"\r\n");
+                formDataBuilder.Append("\r\n");
+                formDataBuilder.Append("1083\r\n");
                 
-                formDataBuilder.AppendLine($"--{boundary}");
-                formDataBuilder.AppendLine("Content-Disposition: form-data; name=\"value\"");
-                formDataBuilder.AppendLine();
-                formDataBuilder.AppendLine(isOn ? "1" : "2");
+                formDataBuilder.Append($"--{boundary}\r\n");
+                formDataBuilder.Append("Content-Disposition: form-data; name=\"value\"\r\n");
+                formDataBuilder.Append("\r\n");
+                formDataBuilder.Append((isOn ? "1" : "2") + "\r\n");
                 
-                formDataBuilder.AppendLine($"--{boundary}--");
+                formDataBuilder.Append($"--{boundary}--\r\n");
 
                 var formDataString = formDataBuilder.ToString();
                 var formContent = new StringContent(formDataString, System.Text.Encoding.UTF8);
@@ -547,9 +569,26 @@ namespace LevittUI.Services
                 {
                     Content = formContent
                 };
+                
+                // Clear any default headers that might conflict
+                postRequest.Headers.Clear();
+                
+                // Add headers to match browser exactly in the exact same order
+                postRequest.Headers.Add("Host", new Uri(_baseUrl).Host);
+                postRequest.Headers.Add("Connection", "keep-alive");
+                postRequest.Headers.Add("Cache-Control", "max-age=0");
+                postRequest.Headers.Add("Origin", _baseUrl);
+                postRequest.Headers.Add("DNT", "1");
+                postRequest.Headers.Add("Upgrade-Insecure-Requests", "1");
+                // Content-Type is set automatically by formContent
+                postRequest.Headers.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36");
+                postRequest.Headers.Add("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7");
                 postRequest.Headers.Add("Referer", dialogUrl);
+                postRequest.Headers.Add("Accept-Encoding", "gzip, deflate");
+                postRequest.Headers.Add("Accept-Language", "en-US,en;q=0.9,es-ES;q=0.8,es;q=0.7");
+                postRequest.Headers.Add("Cookie", $"SessionId={_sessionId}");
 
-                _logger.LogDebug("A/C Control: Sending form data with boundary: {Boundary}", boundary);
+                _logger.LogDebug("A/C Control: Sending form data with boundary: ------{Boundary}", boundary);
                 _logger.LogDebug("A/C Control: Form data: {Content}", formDataString);
 
                 var postResponse = await _httpClient.SendAsync(postRequest);
@@ -708,30 +747,31 @@ namespace LevittUI.Services
                 _logger.LogDebug("Blinds Control: Step 3 - POST {PostUrl}", postUrl);
 
                 // Create form data matching browser format (same as A/C control)
-                var boundary = Guid.NewGuid().ToString();
+                var boundary = "----WebKitFormBoundary" + Guid.NewGuid().ToString("N")[..16];
                 var formDataBuilder = new StringBuilder();
                 
-                formDataBuilder.AppendLine($"--{boundary}");
-                formDataBuilder.AppendLine("Content-Disposition: form-data; name=\"action\"");
-                formDataBuilder.AppendLine();
-                formDataBuilder.AppendLine("update");
+                // Add form fields in the exact format the browser uses with CRLF line endings
+                formDataBuilder.Append($"--{boundary}\r\n");
+                formDataBuilder.Append("Content-Disposition: form-data; name=\"action\"\r\n");
+                formDataBuilder.Append("\r\n");
+                formDataBuilder.Append("update\r\n");
                 
-                formDataBuilder.AppendLine($"--{boundary}");
-                formDataBuilder.AppendLine("Content-Disposition: form-data; name=\"DpDescription\"");
-                formDataBuilder.AppendLine();
-                formDataBuilder.AppendLine("COzwValME8");
+                formDataBuilder.Append($"--{boundary}\r\n");
+                formDataBuilder.Append("Content-Disposition: form-data; name=\"DpDescription\"\r\n");
+                formDataBuilder.Append("\r\n");
+                formDataBuilder.Append("COzwValME8\r\n");
                 
-                formDataBuilder.AppendLine($"--{boundary}");
-                formDataBuilder.AppendLine("Content-Disposition: form-data; name=\"id\"");
-                formDataBuilder.AppendLine();
-                formDataBuilder.AppendLine(dialogId);
+                formDataBuilder.Append($"--{boundary}\r\n");
+                formDataBuilder.Append("Content-Disposition: form-data; name=\"id\"\r\n");
+                formDataBuilder.Append("\r\n");
+                formDataBuilder.Append(dialogId + "\r\n");
                 
-                formDataBuilder.AppendLine($"--{boundary}");
-                formDataBuilder.AppendLine("Content-Disposition: form-data; name=\"value\"");
-                formDataBuilder.AppendLine();
-                formDataBuilder.AppendLine(isUp ? "1" : "2"); // 1 = UP, 2 = DOWN
+                formDataBuilder.Append($"--{boundary}\r\n");
+                formDataBuilder.Append("Content-Disposition: form-data; name=\"value\"\r\n");
+                formDataBuilder.Append("\r\n");
+                formDataBuilder.Append((isUp ? "1" : "2") + "\r\n"); // 1 = UP, 2 = DOWN
                 
-                formDataBuilder.AppendLine($"--{boundary}--");
+                formDataBuilder.Append($"--{boundary}--\r\n");
 
                 var formDataString = formDataBuilder.ToString();
                 var formContent = new StringContent(formDataString, System.Text.Encoding.UTF8);
@@ -744,9 +784,26 @@ namespace LevittUI.Services
                 {
                     Content = formContent
                 };
+                
+                // Clear any default headers that might conflict
+                postRequest.Headers.Clear();
+                
+                // Add headers to match browser exactly in the exact same order
+                postRequest.Headers.Add("Host", new Uri(_baseUrl).Host);
+                postRequest.Headers.Add("Connection", "keep-alive");
+                postRequest.Headers.Add("Cache-Control", "max-age=0");
+                postRequest.Headers.Add("Origin", _baseUrl);
+                postRequest.Headers.Add("DNT", "1");
+                postRequest.Headers.Add("Upgrade-Insecure-Requests", "1");
+                // Content-Type is set automatically by formContent
+                postRequest.Headers.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36");
+                postRequest.Headers.Add("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7");
                 postRequest.Headers.Add("Referer", dialogUrl);
+                postRequest.Headers.Add("Accept-Encoding", "gzip, deflate");
+                postRequest.Headers.Add("Accept-Language", "en-US,en;q=0.9,es-ES;q=0.8,es;q=0.7");
+                postRequest.Headers.Add("Cookie", $"SessionId={_sessionId}");
 
-                _logger.LogDebug("Blinds Control: Sending form data with boundary: {Boundary}", boundary);
+                _logger.LogDebug("Blinds Control: Sending form data with boundary: --{Boundary}", boundary);
                 _logger.LogDebug("Blinds Control: Form data: {Content}", formDataString);
 
                 var postResponse = await _httpClient.SendAsync(postRequest);
